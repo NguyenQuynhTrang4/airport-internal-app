@@ -1,8 +1,10 @@
-import '../config/api_config.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/api_config.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -31,8 +33,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
       final response = await http.get(
         Uri.parse('$apiBaseUrl/api/announcements'),
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (!mounted) return;
@@ -60,9 +66,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   Widget buildContent() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (errorMessage.isNotEmpty) {
@@ -72,11 +76,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.wifi_off,
-                size: 54,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.wifi_off, size: 54, color: Colors.grey),
               const SizedBox(height: 12),
               Text(
                 errorMessage,
@@ -116,10 +116,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 children: [
                   const CircleAvatar(
                     backgroundColor: Color(0xffe3f2fd),
-                    child: Icon(
-                      Icons.campaign,
-                      color: Colors.blue,
-                    ),
+                    child: Icon(Icons.campaign, color: Colors.blue),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

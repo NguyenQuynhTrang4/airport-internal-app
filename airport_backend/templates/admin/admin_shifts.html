@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý ca trực</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <a href="/admin" class="navbar-brand mb-0 h1 text-decoration-none">
+                Airport Internal Admin
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2>Quản lý ca trực</h2>
+                <p class="text-muted">Thêm, xem và xóa lịch ca trực nhân viên</p>
+            </div>
+
+            <a href="/admin" class="btn btn-outline-secondary">
+                Quay lại Dashboard
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white">
+                <strong>Thêm ca trực mới</strong>
+            </div>
+
+            <div class="card-body">
+                <form method="post" action="/admin/shifts/create">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ngày</label>
+                            <input
+                                type="text"
+                                name="date"
+                                class="form-control"
+                                placeholder="Ví dụ: 09/05/2026"
+                                required
+                            >
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Thời gian</label>
+                            <input
+                                type="text"
+                                name="time"
+                                class="form-control"
+                                placeholder="Ví dụ: 06:00 - 14:00"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Bộ phận</label>
+                        <input
+                            type="text"
+                            name="department"
+                            class="form-control"
+                            placeholder="Ví dụ: An ninh"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Vị trí làm việc</label>
+                        <input
+                            type="text"
+                            name="location"
+                            class="form-control"
+                            placeholder="Ví dụ: Cổng kiểm soát A"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Trạng thái</label>
+                        <select name="status" class="form-select" required>
+                            <option value="Sắp tới">Sắp tới</option>
+                            <option value="Đang làm">Đang làm</option>
+                            <option value="Hoàn thành">Hoàn thành</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        Thêm ca trực
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if shifts|length == 0 %}
+            <div class="alert alert-info">
+                Chưa có ca trực nào.
+            </div>
+        {% else %}
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <strong>Danh sách ca trực</strong>
+                </div>
+
+                <div class="card-body">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">STT</th>
+                                <th>Ngày</th>
+                                <th>Thời gian</th>
+                                <th>Bộ phận</th>
+                                <th>Vị trí</th>
+                                <th>Trạng thái</th>
+                                <th style="width: 100px;">Thao tác</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for shift in shifts %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ shift.date }}</td>
+                                <td>{{ shift.time }}</td>
+                                <td>{{ shift.department }}</td>
+                                <td>{{ shift.location }}</td>
+                                <td>
+                                    {% if shift.status == "Sắp tới" %}
+                                        <span class="badge bg-success">{{ shift.status }}</span>
+                                    {% elif shift.status == "Đang làm" %}
+                                        <span class="badge bg-warning text-dark">{{ shift.status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ shift.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form
+                                        method="post"
+                                        action="/admin/shifts/{{ shift.id }}/delete"
+                                        onsubmit="return confirm('Bạn có chắc muốn xóa ca trực này?');"
+                                    >
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,8 +1,10 @@
-import '../config/api_config.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/api_config.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -31,8 +33,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
       final response = await http.get(
         Uri.parse('$apiBaseUrl/api/documents'),
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (!mounted) return;
@@ -60,9 +66,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Widget buildContent() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (errorMessage.isNotEmpty) {
@@ -72,11 +76,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.wifi_off,
-                size: 54,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.wifi_off, size: 54, color: Colors.grey),
               const SizedBox(height: 12),
               Text(
                 errorMessage,
@@ -116,10 +116,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 children: [
                   const CircleAvatar(
                     backgroundColor: Color(0xffe3f2fd),
-                    child: Icon(
-                      Icons.folder,
-                      color: Colors.blue,
-                    ),
+                    child: Icon(Icons.folder, color: Colors.blue),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

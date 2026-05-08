@@ -1,8 +1,10 @@
-import '../config/api_config.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/api_config.dart';
 
 class IncidentReportScreen extends StatefulWidget {
   const IncidentReportScreen({super.key});
@@ -38,9 +40,15 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
       final response = await http.post(
         Uri.parse('$apiBaseUrl/api/incidents'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
           'title': title,
           'location': location,
@@ -58,16 +66,20 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
 
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Gửi báo cáo thất bại')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Gửi thất bại: ${response.statusCode} - ${response.body}',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không kết nối được Backend API')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi kết nối Backend: $e')));
     } finally {
       if (mounted) {
         setState(() {

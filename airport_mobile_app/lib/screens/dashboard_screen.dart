@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'announcements_screen.dart';
 import 'chatbot_screen.dart';
 import 'documents_screen.dart';
 import 'incidents_screen.dart';
+import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'shifts_screen.dart';
 
@@ -20,8 +22,20 @@ class DashboardScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.popUntil(context, (route) => route.isFirst);
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+
+              await prefs.remove('access_token');
+              await prefs.remove('user_full_name');
+              await prefs.remove('user_role');
+
+              if (!context.mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
             },
             icon: const Icon(Icons.logout),
           ),

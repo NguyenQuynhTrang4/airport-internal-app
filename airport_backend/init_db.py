@@ -1,6 +1,10 @@
 from database import get_db_connection
 from database import DB_PATH
 
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 print("Creating database at:", DB_PATH)
 
 conn = get_db_connection()
@@ -56,14 +60,21 @@ CREATE TABLE IF NOT EXISTS incidents (
 )
 """)
 
+admin_password_hash = pwd_context.hash("admin123")
+
 conn.execute("""
 INSERT OR IGNORE INTO users (
     id, username, password, full_name, role, department
 )
-VALUES (
-    1, 'admin', 'admin123', 'Nguyễn Văn An', 'employee', 'An ninh'
-)
-""")
+VALUES (?, ?, ?, ?, ?, ?)
+""", (
+    1,
+    "admin",
+    admin_password_hash,
+    "Nguyễn Văn An",
+    "employee",
+    "An ninh"
+))
 
 conn.execute("""
 INSERT OR IGNORE INTO announcements (id, title, content, date)

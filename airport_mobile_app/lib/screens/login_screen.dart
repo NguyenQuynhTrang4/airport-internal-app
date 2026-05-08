@@ -1,9 +1,10 @@
-import '../config/api_config.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/api_config.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -48,9 +49,32 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final prefs = await SharedPreferences.getInstance();
+
+        await prefs.setString(
+          'access_token',
+          data['access_token'] ?? '',
+        );
+
+        await prefs.setString(
+          'user_full_name',
+          data['user']?['full_name'] ?? '',
+        );
+
+        await prefs.setString(
+          'user_role',
+          data['user']?['role'] ?? '',
+        );
+
+        if (!mounted) return;
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(
+            builder: (context) => const DashboardScreen(),
+          ),
         );
       } else {
         setState(() {

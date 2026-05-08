@@ -1,8 +1,88 @@
-from fastapi import FastAPI, HTTPException
+import os
+from datetime import datetime, timedelta, timezone
+
+from fastapi import FastAPI, HTTPException, Request, Form, Depends
+from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.templating import Jinja2Templates
+from jose import jwt
+from passlib.context import CryptContext
 from pydantic import BaseModel
+
 from database import get_db_connection
 
 app = FastAPI(title="Airport Internal Backend API")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(
+    directory=os.path.join(BASE_DIR, "templates")
+)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = "airport-internal-secret-key-change-this-later"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+security = HTTPBearer()
+def create_access_token(data: dict):
+    to_encode = data.copy()
+
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    to_encode.update({
+        "exp": expire
+    })
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return encoded_jwt
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        username = payload.get("sub")
+
+        if username is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Token không hợp lệ"
+            )
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Token không hợp lệ hoặc đã hết hạn"
+        )
+
+    conn = get_db_connection()
+
+    user = conn.execute("""
+        SELECT id, username, full_name, role, department
+        FROM users
+        WHERE username = ?
+    """, (username,)).fetchone()
+
+    conn.close()
+
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Không tìm thấy người dùng"
+        )
+
+    return dict(user)
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -48,15 +128,25 @@ def login(data: LoginRequest):
             detail="Sai tài khoản hoặc mật khẩu"
         )
 
-    if user["password"] != data.password:
+    if not pwd_context.verify(data.password, user["password"]):
         raise HTTPException(
             status_code=401,
             detail="Sai tài khoản hoặc mật khẩu"
         )
 
+    access_token = create_access_token(
+    data={
+        "sub": user["username"],
+        "user_id": user["id"],
+        "role": user["role"]
+        }
+    )
+
     return {
         "success": True,
         "message": "Đăng nhập thành công",
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
             "id": user["id"],
             "username": user["username"],
@@ -64,10 +154,10 @@ def login(data: LoginRequest):
             "role": user["role"],
             "department": user["department"]
         }
-    }    
+    }   
    
 @app.get("/api/announcements")
-def get_announcements():
+def get_announcements(current_user: dict = Depends(get_current_user)):
     conn = get_db_connection()
 
     announcements = conn.execute("""
@@ -81,7 +171,7 @@ def get_announcements():
     return [dict(item) for item in announcements]   
     
 @app.get("/api/shifts")
-def get_shifts():
+def get_shifts(current_user: dict = Depends(get_current_user)):
     conn = get_db_connection()
 
     shifts = conn.execute("""
@@ -95,7 +185,7 @@ def get_shifts():
     return [dict(item) for item in shifts]
     
 @app.get("/api/documents")
-def get_documents():
+def get_documents(current_user: dict = Depends(get_current_user)):
     conn = get_db_connection()
 
     documents = conn.execute("""
@@ -109,14 +199,14 @@ def get_documents():
     return [dict(item) for item in documents]
     
 @app.get("/api/profile")
-def get_profile():
+def get_profile(current_user: dict = Depends(get_current_user)):
     conn = get_db_connection()
 
     user = conn.execute("""
         SELECT id, username, full_name, role, department
         FROM users
-        WHERE id = 1
-    """).fetchone()
+        WHERE id = ?
+    """, (current_user["id"],)).fetchone()
 
     conn.close()
 
@@ -137,7 +227,10 @@ def get_profile():
     } 
     
 @app.post("/api/incidents")
-def create_incident(data: IncidentRequest):
+def create_incident(
+    data: IncidentRequest,
+    current_user: dict = Depends(get_current_user)
+):
     conn = get_db_connection()
 
     cursor = conn.execute("""
@@ -177,7 +270,7 @@ def create_incident(data: IncidentRequest):
     } 
     
 @app.get("/api/incidents")
-def get_incidents():
+def get_incidents(current_user: dict = Depends(get_current_user)):
     conn = get_db_connection()
 
     incidents = conn.execute("""
@@ -191,7 +284,10 @@ def get_incidents():
     return [dict(item) for item in incidents] 
 
 @app.post("/api/chatbot/ask")
-def ask_chatbot(data: ChatbotRequest):
+def ask_chatbot(
+    data: ChatbotRequest,
+    current_user: dict = Depends(get_current_user)
+):
     question = data.question.lower().strip()
 
     if not question:
@@ -227,4 +323,293 @@ def ask_chatbot(data: ChatbotRequest):
 
     return {
         "answer": answer
-    }                 
+    }   
+    
+@app.get("/admin")
+def admin_dashboard(request: Request):
+    conn = get_db_connection()
+
+    announcement_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM announcements"
+    ).fetchone()["count"]
+
+    shift_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM shifts"
+    ).fetchone()["count"]
+
+    document_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM documents"
+    ).fetchone()["count"]
+
+    incident_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM incidents"
+    ).fetchone()["count"]
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "admin/admin_dashboard.html",
+        {
+            "announcement_count": announcement_count,
+            "shift_count": shift_count,
+            "document_count": document_count,
+            "incident_count": incident_count,
+        }
+    )    
+    
+@app.get("/admin/incidents")
+def admin_incidents(request: Request):
+    conn = get_db_connection()
+
+    incidents = conn.execute("""
+        SELECT id, title, location, level, description, status
+        FROM incidents
+        ORDER BY id DESC
+    """).fetchall()
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "admin/admin_incidents.html",
+        {
+            "incidents": incidents
+        }
+    )   
+    
+@app.post("/admin/incidents/{incident_id}/status")
+def update_incident_status(
+    incident_id: int,
+    status: str = Form(...)
+):
+    conn = get_db_connection()
+
+    conn.execute("""
+        UPDATE incidents
+        SET status = ?
+        WHERE id = ?
+    """, (status, incident_id))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/incidents",
+        status_code=303
+    )    
+    
+@app.get("/admin/announcements")
+def admin_announcements(request: Request):
+    conn = get_db_connection()
+
+    announcements = conn.execute("""
+        SELECT id, title, content, date
+        FROM announcements
+        ORDER BY id DESC
+    """).fetchall()
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "admin/admin_announcements.html",
+        {
+            "announcements": announcements
+        }
+    )
+
+
+@app.post("/admin/announcements/create")
+def create_admin_announcement(
+    title: str = Form(...),
+    content: str = Form(...),
+    date: str = Form(...)
+):
+    conn = get_db_connection()
+
+    conn.execute("""
+        INSERT INTO announcements (title, content, date)
+        VALUES (?, ?, ?)
+    """, (title, content, date))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/announcements",
+        status_code=303
+    )
+
+
+@app.post("/admin/announcements/{announcement_id}/delete")
+def delete_admin_announcement(announcement_id: int):
+    conn = get_db_connection()
+
+    conn.execute("""
+        DELETE FROM announcements
+        WHERE id = ?
+    """, (announcement_id,))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/announcements",
+        status_code=303
+    )
+    
+@app.get("/admin/shifts")
+def admin_shifts(request: Request):
+    conn = get_db_connection()
+
+    shifts = conn.execute("""
+        SELECT id, date, time, department, location, status
+        FROM shifts
+        ORDER BY id DESC
+    """).fetchall()
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "admin/admin_shifts.html",
+        {
+            "shifts": shifts
+        }
+    )
+
+
+@app.post("/admin/shifts/create")
+def create_admin_shift(
+    date: str = Form(...),
+    time: str = Form(...),
+    department: str = Form(...),
+    location: str = Form(...),
+    status: str = Form(...)
+):
+    conn = get_db_connection()
+
+    conn.execute("""
+        INSERT INTO shifts (
+            date,
+            time,
+            department,
+            location,
+            status
+        )
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        date,
+        time,
+        department,
+        location,
+        status
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/shifts",
+        status_code=303
+    )
+
+
+@app.post("/admin/shifts/{shift_id}/delete")
+def delete_admin_shift(shift_id: int):
+    conn = get_db_connection()
+
+    conn.execute("""
+        DELETE FROM shifts
+        WHERE id = ?
+    """, (shift_id,))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/shifts",
+        status_code=303
+    )  
+    
+@app.get("/admin/documents")
+def admin_documents(request: Request):
+    conn = get_db_connection()
+
+    documents = conn.execute("""
+        SELECT id, title, category, content
+        FROM documents
+        ORDER BY id DESC
+    """).fetchall()
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "admin/admin_documents.html",
+        {
+            "documents": documents
+        }
+    )
+
+
+@app.post("/admin/documents/create")
+def create_admin_document(
+    title: str = Form(...),
+    category: str = Form(...),
+    content: str = Form(...)
+):
+    conn = get_db_connection()
+
+    conn.execute("""
+        INSERT INTO documents (
+            title,
+            category,
+            content
+        )
+        VALUES (?, ?, ?)
+    """, (
+        title,
+        category,
+        content
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/documents",
+        status_code=303
+    )
+
+
+@app.post("/admin/documents/{document_id}/delete")
+def delete_admin_document(document_id: int):
+    conn = get_db_connection()
+
+    conn.execute("""
+        DELETE FROM documents
+        WHERE id = ?
+    """, (document_id,))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse(
+        url="/admin/documents",
+        status_code=303
+    )  
+    
+@app.get("/api/auth/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    return {
+        "success": True,
+        "user": {
+            "id": current_user["id"],
+            "username": current_user["username"],
+            "full_name": current_user["full_name"],
+            "role": current_user["role"],
+            "department": current_user["department"]
+        }
+    }

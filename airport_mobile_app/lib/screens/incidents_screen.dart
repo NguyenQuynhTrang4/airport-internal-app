@@ -1,9 +1,10 @@
-import '../config/api_config.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/api_config.dart';
 import 'incident_report_screen.dart';
 
 class IncidentsScreen extends StatefulWidget {
@@ -33,8 +34,12 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
       final response = await http.get(
         Uri.parse('$apiBaseUrl/api/incidents'),
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (!mounted) return;
@@ -63,9 +68,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
   Future<void> openReportScreen() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const IncidentReportScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const IncidentReportScreen()),
     );
 
     fetchIncidents();
@@ -73,9 +76,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
 
   Widget buildContent() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (errorMessage.isNotEmpty) {
@@ -85,11 +86,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.wifi_off,
-                size: 54,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.wifi_off, size: 54, color: Colors.grey),
               const SizedBox(height: 12),
               Text(
                 errorMessage,
@@ -113,11 +110,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         child: ListView(
           children: const [
             SizedBox(height: 180),
-            Icon(
-              Icons.report_problem_outlined,
-              size: 60,
-              color: Colors.grey,
-            ),
+            Icon(Icons.report_problem_outlined, size: 60, color: Colors.grey),
             SizedBox(height: 12),
             Center(
               child: Text(
@@ -152,10 +145,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                 children: [
                   const CircleAvatar(
                     backgroundColor: Color(0xffffebee),
-                    child: Icon(
-                      Icons.report_problem,
-                      color: Colors.red,
-                    ),
+                    child: Icon(Icons.report_problem, color: Colors.red),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

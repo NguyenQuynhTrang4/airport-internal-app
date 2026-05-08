@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản lý tài liệu</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <a href="/admin" class="navbar-brand mb-0 h1 text-decoration-none">
+                Airport Internal Admin
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2>Quản lý tài liệu</h2>
+                <p class="text-muted">Thêm, xem và xóa tài liệu/quy trình nội bộ</p>
+            </div>
+
+            <a href="/admin" class="btn btn-outline-secondary">
+                Quay lại Dashboard
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white">
+                <strong>Thêm tài liệu mới</strong>
+            </div>
+
+            <div class="card-body">
+                <form method="post" action="/admin/documents/create">
+                    <div class="mb-3">
+                        <label class="form-label">Tiêu đề tài liệu</label>
+                        <input
+                            type="text"
+                            name="title"
+                            class="form-control"
+                            placeholder="Ví dụ: Quy trình kiểm tra an ninh"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Danh mục</label>
+                        <input
+                            type="text"
+                            name="category"
+                            class="form-control"
+                            placeholder="Ví dụ: An ninh, Khai thác, Dịch vụ hành khách"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Nội dung</label>
+                        <textarea
+                            name="content"
+                            class="form-control"
+                            rows="5"
+                            placeholder="Nhập nội dung tài liệu/quy trình"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        Thêm tài liệu
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if documents|length == 0 %}
+            <div class="alert alert-info">
+                Chưa có tài liệu nào.
+            </div>
+        {% else %}
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white">
+                    <strong>Danh sách tài liệu</strong>
+                </div>
+
+                <div class="card-body">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">STT</th>
+                                <th>Tiêu đề</th>
+                                <th>Danh mục</th>
+                                <th>Nội dung</th>
+                                <th style="width: 100px;">Thao tác</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ doc.title }}</td>
+                                <td>
+                                    <span class="badge bg-primary">
+                                        {{ doc.category }}
+                                    </span>
+                                </td>
+                                <td>{{ doc.content }}</td>
+                                <td>
+                                    <form
+                                        method="post"
+                                        action="/admin/documents/{{ doc.id }}/delete"
+                                        onsubmit="return confirm('Bạn có chắc muốn xóa tài liệu này?');"
+                                    >
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

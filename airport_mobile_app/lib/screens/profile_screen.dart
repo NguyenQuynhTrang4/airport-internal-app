@@ -1,8 +1,10 @@
-import '../config/api_config.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/api_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -31,8 +33,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
       final response = await http.get(
         Uri.parse('$apiBaseUrl/api/profile'),
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (!mounted) return;
@@ -60,9 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget buildContent() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (errorMessage.isNotEmpty) {
@@ -72,11 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.wifi_off,
-                size: 54,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.wifi_off, size: 54, color: Colors.grey),
               const SizedBox(height: 12),
               Text(
                 errorMessage,
@@ -114,11 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const CircleAvatar(
                     radius: 42,
                     backgroundColor: Color(0xffe3f2fd),
-                    child: Icon(
-                      Icons.person,
-                      size: 48,
-                      color: Colors.blue,
-                    ),
+                    child: Icon(Icons.person, size: 48, color: Colors.blue),
                   ),
                   const SizedBox(height: 14),
                   Text(
@@ -200,9 +196,7 @@ class ProfileInfoItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 1,
       color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
         leading: Icon(icon, color: Colors.blue),
         title: Text(label),
