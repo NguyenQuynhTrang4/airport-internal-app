@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS incidents (
 )
 """)
 
+employee_password_hash = pwd_context.hash("admin123")
 admin_password_hash = pwd_context.hash("admin123")
 
 conn.execute("""
@@ -70,10 +71,24 @@ VALUES (?, ?, ?, ?, ?, ?)
 """, (
     1,
     "admin",
-    admin_password_hash,
+    employee_password_hash,
     "Nguyễn Văn An",
     "employee",
     "An ninh"
+))
+
+conn.execute("""
+INSERT OR IGNORE INTO users (
+    id, username, password, full_name, role, department
+)
+VALUES (?, ?, ?, ?, ?, ?)
+""", (
+    2,
+    "superadmin",
+    admin_password_hash,
+    "Quản trị hệ thống",
+    "admin",
+    "IT"
 ))
 
 conn.execute("""

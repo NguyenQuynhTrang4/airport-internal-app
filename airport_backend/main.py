@@ -8,10 +8,16 @@ from fastapi.templating import Jinja2Templates
 from jose import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
 
 from database import get_db_connection
 
 app = FastAPI(title="Airport Internal Backend API")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="airport-admin-session-secret-change-this-later"
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(
@@ -325,8 +331,28 @@ def ask_chatbot(
         "answer": answer
     }   
     
+def require_admin_session(request: Request):
+    admin_user = request.session.get("admin_user")
+
+    if admin_user is None:
+        return None
+
+    if admin_user.get("role") != "admin":
+        return None
+
+    return admin_user
+
+
 @app.get("/admin")
 def admin_dashboard(request: Request):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
+
     conn = get_db_connection()
 
     announcement_count = conn.execute(
@@ -360,6 +386,13 @@ def admin_dashboard(request: Request):
     
 @app.get("/admin/incidents")
 def admin_incidents(request: Request):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     incidents = conn.execute("""
@@ -380,9 +413,17 @@ def admin_incidents(request: Request):
     
 @app.post("/admin/incidents/{incident_id}/status")
 def update_incident_status(
+    request: Request,
     incident_id: int,
     status: str = Form(...)
 ):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -401,6 +442,13 @@ def update_incident_status(
     
 @app.get("/admin/announcements")
 def admin_announcements(request: Request):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     announcements = conn.execute("""
@@ -422,10 +470,18 @@ def admin_announcements(request: Request):
 
 @app.post("/admin/announcements/create")
 def create_admin_announcement(
+    request: Request,
     title: str = Form(...),
     content: str = Form(...),
     date: str = Form(...)
 ):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -443,7 +499,17 @@ def create_admin_announcement(
 
 
 @app.post("/admin/announcements/{announcement_id}/delete")
-def delete_admin_announcement(announcement_id: int):
+def delete_admin_announcement(
+    request: Request,
+    announcement_id: int
+):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -461,6 +527,13 @@ def delete_admin_announcement(announcement_id: int):
     
 @app.get("/admin/shifts")
 def admin_shifts(request: Request):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     shifts = conn.execute("""
@@ -482,12 +555,20 @@ def admin_shifts(request: Request):
 
 @app.post("/admin/shifts/create")
 def create_admin_shift(
+    request: Request,
     date: str = Form(...),
     time: str = Form(...),
     department: str = Form(...),
     location: str = Form(...),
     status: str = Form(...)
 ):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -517,7 +598,17 @@ def create_admin_shift(
 
 
 @app.post("/admin/shifts/{shift_id}/delete")
-def delete_admin_shift(shift_id: int):
+def delete_admin_shift(
+    request: Request,
+    shift_id: int
+):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -535,6 +626,13 @@ def delete_admin_shift(shift_id: int):
     
 @app.get("/admin/documents")
 def admin_documents(request: Request):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     documents = conn.execute("""
@@ -556,10 +654,18 @@ def admin_documents(request: Request):
 
 @app.post("/admin/documents/create")
 def create_admin_document(
+    request: Request,
     title: str = Form(...),
     category: str = Form(...),
     content: str = Form(...)
 ):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -585,7 +691,17 @@ def create_admin_document(
 
 
 @app.post("/admin/documents/{document_id}/delete")
-def delete_admin_document(document_id: int):
+def delete_admin_document(
+    request: Request,
+    document_id: int
+):
+    admin_user = require_admin_session(request)
+
+    if admin_user is None:
+        return RedirectResponse(
+            url="/admin/login",
+            status_code=303
+        )
     conn = get_db_connection()
 
     conn.execute("""
@@ -613,3 +729,78 @@ def get_me(current_user: dict = Depends(get_current_user)):
             "department": current_user["department"]
         }
     }
+    
+@app.get("/admin/login")
+def admin_login_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "admin/admin_login.html",
+        {
+            "error": None
+        }
+    )
+
+
+@app.post("/admin/login")
+def admin_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    conn = get_db_connection()
+
+    user = conn.execute("""
+        SELECT id, username, password, full_name, role, department
+        FROM users
+        WHERE username = ?
+    """, (username,)).fetchone()
+
+    conn.close()
+
+    if user is None:
+        return templates.TemplateResponse(
+            request,
+            "admin/admin_login.html",
+            {
+                "error": "Sai tài khoản hoặc mật khẩu"
+            }
+        )
+
+    if not pwd_context.verify(password, user["password"]):
+        return templates.TemplateResponse(
+            request,
+            "admin/admin_login.html",
+            {
+                "error": "Sai tài khoản hoặc mật khẩu"
+            }
+        )
+
+    if user["role"] != "admin":
+        return templates.TemplateResponse(
+            request,
+            "admin/admin_login.html",
+            {
+                "error": "Tài khoản không có quyền quản trị"
+            }
+        )
+
+    request.session["admin_user"] = {
+        "id": user["id"],
+        "username": user["username"],
+        "full_name": user["full_name"],
+        "role": user["role"]
+    }
+
+    return RedirectResponse(
+        url="/admin",
+        status_code=303
+    ) 
+    
+@app.get("/admin/logout")
+def admin_logout(request: Request):
+    request.session.clear()
+
+    return RedirectResponse(
+        url="/admin/login",
+        status_code=303
+    )       
